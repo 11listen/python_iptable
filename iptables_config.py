@@ -10,22 +10,24 @@ def get_mac_address():
     return ":".join(mac[e:e+2] for e in range(0, 11, 2))
 mac_address = get_mac_address()
 
-#get filter iptables and chain
+#change default policy
 table = iptc.Table(iptc.Table.FILTER)
-chains_list = []
-for chain in table.chains:
-    chains_list.append(chain.name)
-'''
-input_chain = chains_list[0]
-forward_chain = chains_list[1]
-output_chain = chains_list[2]
-print input_chain
-print forward_chain
-print output_chain
+input_chain = iptc.Chain(table, "INPUT")
+forward_chain = iptc.Chain(table, "FORWARD")
+#output_chain = iptc.Chain(table, "OUTPUT")
+pol = iptc.Policy("DROP")
+input_chain.set_policy(pol)
+forward_chain.set_policy(pol)
+#output_chain.set_policy(pol)
 
 #clear filter flush
-flush_iptables = table.flush()
-'''
+table = iptc.Table(iptc.Table.FILTER)
+flush_input = iptc.Chain(table, 'INPUT').flush()
+flush_forward = iptc.Chain(table, 'FORWARD').flush()
+nat_table = iptc.Table(iptc.Table.NAT)
+flush_nat = iptc.Chain(nat_table, 'POSTROUTING').flush()
+
+
 #define rules connection state
 rule = iptc.Rule()
 rule.Protocol = "tcp"
@@ -45,10 +47,19 @@ rule.target = iptc.Target(rule, "ACCEPT")
 chain = iptc.Chain(iptc.Table(iptc.Table.FILTER), "INPUT")
 chain.insert_rule(rule)
 
+#config snat
+chain = iptc.Chain(iptc.Table('nat'), 'POSTROUTING')
+rule = iptc.Rule()
+rule.out_interface = 'eth0'
+rule.src = "192.168.0.0/255.255.255.0"
+t = rule.create_target('SNAT')
+t.to_source = "192.168.6.129"
+chain.insert_rule(rule)
 
-'''
-#change default policy
-input_chain = iptc.Policy("INPUT").DROP
-forward_chain = iptc.Policy("INPUT").DROP
-output_chain = iptc.Policy("INPUT").DROP
-'''
+#define forward rule
+rule = iptc.Rule()
+rule.target = iptc.Target(rule, "ACCEPT")
+chain = iptc.Chain(iptc.Table(iptc.Table.FILTER), "FORWARD")
+rule.in_interface = 'eth0'
+rule.out_interface = 'eth1'
+chain.insert_rule(rule)
