@@ -53,7 +53,7 @@ rule = iptc.Rule()
 rule.out_interface = 'eth0'
 rule.src = "192.168.0.0/255.255.255.0"
 t = rule.create_target('SNAT')
-t.to_source = "192.168.6.129"
+t.to_source = "192.168.0.104"
 chain.insert_rule(rule)
 
 #define forward rule
@@ -62,4 +62,9 @@ rule.target = iptc.Target(rule, "ACCEPT")
 chain = iptc.Chain(iptc.Table(iptc.Table.FILTER), "FORWARD")
 rule.in_interface = 'eth0'
 rule.out_interface = 'eth1'
+rule.protocol = 'tcp'
+match = iptc.Match(rule, "tcp")
+match.dport = "80"
+rule.dst = "192.168.0.104"
+rule.add_match(match)
 chain.insert_rule(rule)
